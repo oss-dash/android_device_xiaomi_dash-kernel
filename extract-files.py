@@ -160,6 +160,10 @@ MBOX_ATTR_NODES = (
     "scp@1c800000",
 )
 
+PSTORE_NODE = "mtdoops_pmsg@aec00000"
+PSTORE_OLD_COMPAT = "xiaomi,mtdoops_pmsg"
+PSTORE_NEW_COMPAT = "ramoops"
+
 
 def find_dts_node(dts_content: str, node_name: str):
     """Return the (start, end) offsets of a named node block, braces included."""
@@ -209,6 +213,7 @@ def fixup_dtb(dtb_path: Path):
 
     dts_content = dts_path.read_text()
     patched = []
+    pstore_fixed = False
     for node_name in MBOX_ATTR_NODES:
         span = find_dts_node(dts_content, node_name)
         if not span:
@@ -244,6 +249,38 @@ def fixup_dtb(dtb_path: Path):
         print(f"  - added mbox-attr to {', '.join(patched)} in {dtb_path.name}")
     else:
         print(f"  - {dtb_path.name} already has mbox-attr on every mailbox node")
+
+    # The Xiaomi log carveout at 0xaec00000 is re-pointed at the mainline
+    # ramoops driver. It already has the ramoops layout (2 MiB console zone,
+    # 2 MiB pmsg zone) in reserved DRAM, so the kernel console is mirrored
+    # there and survives a panic reboot: the next boot exposes it as
+    # /sys/fs/pstore/console-ramoops-0.
+    span = find_dts_node(dts_content, PSTORE_NODE)
+    if span is None:
+        print(f"  - warning: {PSTORE_NODE} not found in {dtb_path.name}")
+    else:
+        body = dts_content[span[0]:span[1]]
+        if f'compatible = "{PSTORE_NEW_COMPAT}";' in body:
+            print(f"  - {dtb_path.name} already has the pstore console")
+        else:
+            new_body, count = re.subn(
+                r'compatible[ \t]*=[ \t]*"'
+                + re.escape(PSTORE_OLD_COMPAT)
+                + r'"[ \t]*;',
+                f'compatible = "{PSTORE_NEW_COMPAT}";',
+                body,
+            )
+            if count != 1:
+                print(f"  - warning: {PSTORE_NODE} has no {PSTORE_OLD_COMPAT} compatible")
+            else:
+                dts_content = dts_content[: span[0]] + new_body + dts_content[span[1]:]
+                pstore_fixed = True
+
+    if patched or pstore_fixed:
+        dts_path.write_text(dts_content)
+        run("dtc", "-I", "dts", "-O", "dtb", "-o", str(dtb_path), str(dts_path))
+        if pstore_fixed:
+            print(f"  - pstore: {PSTORE_NODE} -> {PSTORE_NEW_COMPAT} console in {dtb_path.name}")
 
     if dts_path.exists():
         dts_path.unlink()
