@@ -12,7 +12,6 @@ virtio_blk.ko
 zram.ko
 open-dice.ko
 vcpu_stall_detector.ko
-macsec.ko
 mii.ko
 can-dev.ko
 vcan.ko

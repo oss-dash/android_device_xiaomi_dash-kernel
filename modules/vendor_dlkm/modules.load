@@ -131,7 +131,6 @@ si_haptic.ko
 conninfra.ko
 wmt_chrdev_wifi_connac3.ko
 wlan_drv_gen4m_6991_6639_new9gen2.ko
-bluetooth.ko
 btmtk_uart_unify.ko
 gps_drv_dl_v062.ko
 hf_manager.ko
@@ -230,11 +229,8 @@ xiaomi_touch_dash.ko
 nt38771_touch_dash.ko
 perf-actuator.ko
 xr-qi.ko
-xr-qs.ko
 dio_dma_mapper.ko
 miicmpfilter.ko
-mi_schedule.ko
-metis.ko
 powersave.ko
 lb.ko
 xm_power.ko
